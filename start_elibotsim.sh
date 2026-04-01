@@ -1,13 +1,14 @@
 #!/bin/bash
-PERSISTENT_BASE="${HOME}/.elibotsim"
+
+PERSISTENT_BASE="${HOME}/.elisim"
 IP_ADDRESS="192.168.56.101"
 PORT_FORWARDING_WITH_DASHBOARD="-p 30001-30004:30001-30004 -p 29999:29999 -p 6080:6080 -p 2222:22"
 #PORT_FORWARDING_WITHOUT_DASHBOARD="-p 30001-30004:30001-30004"
-CONTAINER_NAME="elibotsim"
+CONTAINER_NAME="elisim"
 SERIES_FLAG=0
 ROBOT_MODEL=""
 ROBOT_SERIES=""
-IMAGE_VERSION="v2.14.5"
+IMAGE_VERSION="v2.15.0"
 PORT_FORWARDING=""
 PROGRAM_STORAGE_ARG=""
 ELITECO_STORAGE_ARG=""
@@ -18,7 +19,7 @@ ROBOT_GENERATION_ID="${SERIES_FLAG:-0}"
 REGISTRY_IMAGE_BASE="crpi-yhojs26vvyw1g1kz.cn-hangzhou.personal.cr.aliyuncs.com/dukang123/elite_robot_sim"    ##修改此处docker pull地址
 
 help() {
-  echo "Starts ELIBOTSim inside a docker container"
+  echo "Starts EliSim inside a docker container"
   echo
   echo "Syntax: $(basename "$0") [-m|s|h]"
   echo "options:"
@@ -98,8 +99,8 @@ validate_ip_address() {
 resolve_docker_image() {
   local version="$1"
 
-  if docker image inspect "elite_sim:${version}" >/dev/null 2>&1; then
-    echo "elite_sim:${version}"
+  if docker image inspect "eliterobots/elisim_cs:${version}" >/dev/null 2>&1; then
+    echo "eliterobots/elisim_cs:${version}"
     return
   fi
   
@@ -120,6 +121,7 @@ resolve_docker_image() {
   docker rmi "${REGISTRY_IMAGE_BASE}:${version}" >/dev/null 2>&1 || true
   echo "elite_sim:${version}"
 }
+
 get_robot_type_id_from_robot_model() {
   local model="$1"
   model=$(echo "$model" | tr -d '[:space:]' | tr '[:lower:]' '[:upper:]')
@@ -127,25 +129,25 @@ get_robot_type_id_from_robot_model() {
     model="CS${model#ES}"
   fi
   case "$model" in
-    CS63) echo 6203 ;;
-    CS66) echo 6206 ;;
-    CS68) echo 6208 ;;
-    CS612) echo 6212 ;;
-    CS616) echo 6216 ;;
-    CS616-9) echo 62162 ;;
-    CS618) echo 6218 ;;
-    CS620) echo 6220 ;;
-    CS625) echo 6225 ;;
-    CS630) echo 6230 ;;
-    CS66A) echo 6106 ;;
-    CS610A) echo 6110 ;;
-    CS612A) echo 6112 ;;
-    CS66AZ) echo 61061 ;;
-    CS612AZ) echo 61121 ;;
-    CS56H) echo 5206 ;;
-    CS520H) echo 5220 ;;
-    CS525H) echo 5225 ;;
-    CS530H) echo 5230 ;;
+    CS63)      echo 6203 ;;
+    CS66)      echo 6206 ;;
+    CS68)      echo 6208 ;;
+    CS612)     echo 6212 ;;
+    CS616)     echo 6216 ;;
+    CS616-9)   echo 62162 ;;
+    CS618)     echo 6218 ;;
+    CS620)     echo 6220 ;;
+    CS625)     echo 6225 ;;
+    CS630)     echo 6230 ;;
+    CS66A)     echo 6106 ;;
+    CS610A)    echo 6110 ;;
+    CS612A)    echo 6112 ;;
+    CS66AZ)    echo 61061 ;;
+    CS612AZ)   echo 61121 ;;
+    CS56H)     echo 5206 ;;
+    CS520H)    echo 5220 ;;
+    CS525H)    echo 5225 ;;
+    CS530H)    echo 5230 ;;
     *) echo "Unknown model: $model" >&2; return 1 ;;
   esac
 }
@@ -155,8 +157,8 @@ main() {
   fill_information
   validate_ip_address "$IP_ADDRESS"
 
-  ELITECO_STORAGE="${PERSISTENT_BASE}/${ROBOT_SERIES}/eliteco"
-  PROGRAM_STORAGE="${PERSISTENT_BASE}/${ROBOT_SERIES}/${ROBOT_MODEL}/programs"
+  ELITECO_STORAGE="${PERSISTENT_BASE}/plugins"
+  PROGRAM_STORAGE="${PERSISTENT_BASE}/programs"
   [ -n "$PROGRAM_STORAGE_ARG" ] && PROGRAM_STORAGE="$PROGRAM_STORAGE_ARG"
   [ -n "$ELITECO_STORAGE_ARG" ] && ELITECO_STORAGE="$ELITECO_STORAGE_ARG"
 
@@ -172,7 +174,7 @@ main() {
     docker network rm elibotsim_net || exit 1
   fi
 
-  docker network create --subnet=192.168.56.0/24 elibotsim_net &>/dev/null || {
+  docker network create --subnet=192.168.56.0/24 elisim_net &>/dev/null || {
      echo "Failed to create network"; 
      exit 1
             }
@@ -188,9 +190,9 @@ main() {
   echo -e "ROBOT_GENERATION_ID: \e[35m$ROBOT_GENERATION_ID\e[0m"
   docker_args=(
     run --rm
-    --net elibotsim_net --ip "$IP_ADDRESS"
-    -v "${ELITECO_STORAGE}:/opt/EliteRobots/EliRobot/.plugins"
-    -v "${PROGRAM_STORAGE}:/opt/EliteRobots/EliRobot/program"
+    --net elisim_net --ip "$IP_ADDRESS"
+    -v "${ELITECO_STORAGE}:/home/elite/EliRobot/.plugins"
+    -v "${PROGRAM_STORAGE}:/home/elite/EliRobot/program"
     -e "ROBOT_TYPE_ID=${ROBOT_TYPE_ID}"
     -e "TOOL_TYPE_ID=${TOOL_TYPE_ID}"
     -e "CONTROL_BOX_ID=${CONTROL_BOX_ID}"
@@ -225,7 +227,7 @@ main() {
 
 
   TRAP_CMD="
-  echo 'Stopping elibotsim ...';
+  echo 'Stopping elisim ...';
   docker stop '$CONTAINER_NAME' >/dev/null 2>&1 || true
   docker kill '$CONTAINER_NAME' >/dev/null 2>&1 || true
   docker container wait '$CONTAINER_NAME' >/dev/null 2>&1 || true
